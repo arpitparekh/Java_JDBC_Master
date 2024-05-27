@@ -3,6 +3,9 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Arrays;
+import java.util.List;
 
 public class DatabaseConnections {
 
@@ -13,7 +16,10 @@ public class DatabaseConnections {
     public static void main(String[] args) {
         try {
 
+            ;
             Class.forName("com.mysql.cj.jdbc.Driver");
+     
+            createDatabase("My_Personal_Database");
 
             // Test each CRUD operation
             insertStudent(3, "John Doe");
@@ -22,7 +28,15 @@ public class DatabaseConnections {
             readStudents();
             deleteStudent(3);
             readStudents();
+
+             List<Student> students = Arrays.asList(
+                new Student(4, "Alice"),
+                new Student(5, "Bob"),
+                new Student(6, "Charlie")
+             );
             
+            batchInsertStudents(students);
+
         } catch (ClassNotFoundException e) {
             System.out.println("MySQL Driver not found: " + e.getMessage());
         }
@@ -50,6 +64,7 @@ public class DatabaseConnections {
 
     // Read
     public static void readStudents() {
+
         String selectSql = "SELECT * FROM student";
         try (Connection c = DriverManager.getConnection(URL, USER, PASSWORD);
                 PreparedStatement ps = c.prepareStatement(selectSql);
@@ -58,6 +73,7 @@ public class DatabaseConnections {
             while (rs.next()) {
                 System.out.println(rs.getInt("id") + " : " + rs.getString("name"));
             }
+
         } catch (SQLException e) {
             System.out.println("Read Error: " + e.getMessage());
         }
@@ -101,4 +117,64 @@ public class DatabaseConnections {
             System.out.println("Delete Error: " + e.getMessage());
         }
     }
+    
+    // Batch Install
+    public static void batchInsertStudents(List<Student> students) { 
+        String insertSql = "INSERT INTO student (id, name) VALUES (?, ?)";
+        try (Connection c = DriverManager.getConnection(URL, USER, PASSWORD);
+                PreparedStatement ps = c.prepareStatement(insertSql)) {
+
+            for (Student student : students) {
+                ps.setInt(1, student.getId());
+                ps.setString(2, student.getName());
+                ps.addBatch();
+            }
+
+            int[] results = ps.executeBatch();
+            System.out.println("Batch insert completed. " + results.length + " rows inserted.");
+        } catch (SQLException e) {
+            System.out.println("Batch Insert Error: " + e.getMessage());
+        }
+    }
+
+    // Create Database
+    public static void createDatabase(String databaseName) {
+        Connection conn = null;
+        Statement stmt = null;
+
+        try {
+            // Register JDBC driver
+            Class.forName("com.mysql.cj.jdbc.Driver");
+
+            // Open a connection
+            System.out.println("Connecting to MySQL server...");
+            conn = DriverManager.getConnection(URL, USER, PASSWORD);
+
+            // Create a statement object
+            stmt = conn.createStatement();
+
+            // SQL statement to create a new database
+            String sql = "CREATE DATABASE " + databaseName;
+
+            // Execute the SQL statement
+            stmt.executeUpdate(sql);
+            System.out.println("Database " + databaseName + " created successfully...");
+
+        } catch (SQLException | ClassNotFoundException se) {
+            // Handle errors for JDBC
+            se.printStackTrace();
+        } finally {
+            // Close resources
+            try {
+                if (stmt != null)
+                    stmt.close();
+                if (conn != null)
+                    conn.close();
+            } catch (SQLException se) {
+                se.printStackTrace();
+            }
+        }
+    }
+
 }
+ 
